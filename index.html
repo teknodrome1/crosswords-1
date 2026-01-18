@@ -1,73 +1,189 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Crossword #1</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Crossword #1</title>
 
-<style>
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    margin: 20px;
-  }
+  <style>
+    :root { --cell: 40px; --border: #111; }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(15, 40px);
-    grid-template-rows: repeat(15, 40px);
-    gap: 0;
-    margin-bottom: 20px;
-  }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 18px;
+      color: #111;
+    }
 
-  .cell {
-    border: 1px solid #000;
-    position: relative;
-    text-align: center;
-    line-height: 40px;
-    font-weight: bold;
-    font-size: 18px;
-  }
+    h1 { margin: 0 0 14px; font-size: 34px; }
 
-  .block {
-    background: #000;
-  }
+    .layout {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 20px;
+      align-items: start;
+    }
 
-  .number {
-    position: absolute;
-    top: 2px;
-    left: 3px;
-    font-size: 9px;
-    font-weight: normal;
-  }
+    /* Responsive: on small screens put clues below */
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+    }
 
-  .blink-green {
-    animation: greenflash 0.4s ease-in-out 2;
-  }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(15, var(--cell));
+      grid-template-rows: repeat(15, var(--cell));
+      user-select: none;
+      border: 0;
+    }
 
-  .blink-red {
-    animation: redflash 0.4s ease-in-out 2;
-  }
+    .cell {
+      position: relative;
+      width: var(--cell);
+      height: var(--cell);
+      border: 1px solid var(--border);
+      box-sizing: border-box;
+      background: #fff;
+    }
 
-  @keyframes greenflash {
-    0%,100% { background:#c8f7c5; }
-    50% { background:#2ecc71; }
-  }
+    .cell.block {
+      background: #000;
+    }
 
-  @keyframes redflash {
-    0%,100% { background:#f7c5c5; }
-    50% { background:#e74c3c; }
-  }
-</style>
+    .num {
+      position: absolute;
+      top: 2px;
+      left: 3px;
+      font-size: 10px;
+      font-weight: normal;
+      line-height: 1;
+      color: #111;
+      pointer-events: none;
+    }
+
+    .ch {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 18px;
+      color: #111;
+      pointer-events: none;
+    }
+
+    .cell.selected {
+      outline: 3px solid #3b82f6;
+      outline-offset: -3px;
+    }
+
+    .cell.in-word {
+      background: #eef6ff;
+    }
+
+    .cell.block.selected,
+    .cell.block.in-word {
+      outline: none;
+      background: #000;
+    }
+
+    /* Blink feedback */
+    @keyframes blinkGreen { 0%,100%{ background:#e8fff0; } 50%{ background:#9ef0b7; } }
+    @keyframes blinkRed   { 0%,100%{ background:#ffecec; } 50%{ background:#ff9a9a; } }
+
+    .blink-green { animation: blinkGreen 420ms ease-in-out 0s 2; }
+    .blink-red   { animation: blinkRed   420ms ease-in-out 0s 2; }
+
+    /* Clues */
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .panel h3 {
+      margin: 14px 0 6px;
+      font-size: 15px;
+    }
+
+    .clues {
+      columns: 2;
+      column-gap: 18px;
+    }
+
+    @media (max-width: 980px) {
+      .clues { columns: 1; }
+    }
+
+    .clue {
+      break-inside: avoid;
+      margin: 0 0 7px;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin: 0 0 12px;
+    }
+
+    button {
+      padding: 7px 10px;
+      border: 1px solid #bbb;
+      background: #fff;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button:hover { background: #f4f4f4; }
+
+    .status {
+      font-size: 13px;
+      color: #333;
+    }
+
+    /* Hidden input for mobile keyboard reliability */
+    input.hidden {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+  </style>
 </head>
 
 <body>
+  <h1>Crossword #1</h1>
 
-<h2>Crossword #1</h2>
+  <div class="toolbar">
+    <button id="toggleDir">Direction: <b id="dirLabel">ACROSS</b></button>
+    <button id="checkWord">Check word</button>
+    <button id="clearWord">Clear word</button>
+    <span class="status" id="status"></span>
+  </div>
 
-<div class="grid" id="grid"></div>
+  <div class="layout">
+    <div>
+      <div id="grid" class="grid" aria-label="Crossword grid"></div>
+      <input id="kbd" class="hidden" inputmode="latin" autocomplete="off" autocapitalize="characters" />
+    </div>
+
+    <div class="panel">
+      <h2>Clues</h2>
+
+      <h3>Across</h3>
+      <div class="clues" id="acrossClues"></div>
+
+      <h3>Down</h3>
+      <div class="clues" id="downClues"></div>
+    </div>
+  </div>
 
 <script>
-const solution = [
+/* SOLUTION GRID (your exact 15x15) */
+const SOLUTION_ROWS = [
   "ALAS###DNA#SHE#",
   "POWER#SEAS#HAND",
   "TRADE#TANK#OBEY",
@@ -82,75 +198,352 @@ const solution = [
   "ATLAS##SIMILAR#",
   "PROS#SPIN#NODES",
   "PAST#PUTT#GUISE",
-  "#YES#APE###DOSE"
+  "#YES#APE###DOSE",
 ];
 
-const grid = document.getElementById("grid");
-const user = Array.from({length:15},()=>Array(15).fill(""));
+/* ACROSS CLUES (by number) */
+const ACROSS_CLUES = {
+  1: "Oh dear!",
+  5: "It can show paternity.",
+  8: "Murder ____ wrote.",
+  11: "Strength.",
+  12: "Briny waters.",
+  13: "Farm laborer.",
+  14: "Federal commission.",
+  16: "Military vehicle.",
+  17: "Do as directed.",
+  19: "Pulled with effort.",
+  21: "______ rib.",
+  22: "Boss.",
+  23: "Starkly realistic.",
+  25: "I can't believe it.",
+  26: "Haven for sea life.",
+  27: "Water flow controller.",
+  31: "Senior to junior.",
+  32: "In the distance.",
+  36: "Illegal firing.",
+  37: "Mafia.",
+  38: "Plant life.",
+  39: "Youth.",
+  40: "Command to an attack dog.",
+  41: "Deeply serious.",
+  42: "A comparative word.",
+  44: "For each.",
+  45: "Row.",
+  47: "Aspect.",
+  51: "A book showing all the countries of the world.",
+  52: "Alike.",
+  53: "Major leaguers.",
+  54: "Washer cycle.",
+  56: "Connection points.",
+  58: "History.",
+  59: "Golf stroke on the green.",
+  60: "General external appearance.",
+  61: "Sycophant's answer.",
+  62: "Animal that beats its chest.",
+  63: "Medicinal amount.",
+};
 
-let count = 1;
-const numbers = Array.from({length:15},()=>Array(15).fill(""));
+/* DOWN CLUES (list of [number, answer, clue]) */
+const DOWN_LIST = [
+  [1,  "APT",      "Fitting."],
+  [2,  "LORDS",    "\"The _____ Prayer\"."],
+  [3,  "AWARE",    "On the ball."],
+  [4,  "SEDAN",    "Driver's choice."],
+  [5,  "DEAD",     "Not working, as a battery."],
+  [6,  "NAN",      "One of the Bobbsey twins."],
+  [7,  "ASK",      "Make an inquiry."],
+  [8,  "SHORTFALL","Amount by which something is less than expected or required."],
+  [9,  "HABIT",    "Custom."],
+  [10, "ENEMY",    "Opposing force."],
+  [12, "REGIMENT", "Strict procedure."],
+  [13, "STERN",    "Back."],
+  [15, "DIE",      "Salon job."],
+  [20, "GOAT",     "Milk source."],
+  [21, "PIE",      "Crusted dessert."],
+  [23, "GRAB",     "Seize eagerly."],
+  [24, "RED",      "Primary color."],
+  [27, "FAT",      "Dieting taboo."],
+  [28, "ARE",      "\"All the things you _____\"."],
+  [29, "USE",      "\"What's the _____?\""],
+  [30, "CONTRASTS","Sharp differences."],
+  [31, "DOC",      "Diagnoser, for short."],
+  [33, "FOE",      "Adversary."],
+  [34, "ARM",      "Supply with weapons."],
+  [35, "RAN",      "Wasn't colorfast."],
+  [37, "MINE",     "Outfielder's cry."],
+  [38, "FORGING",  "Making a copy of, with intent to deceive."],
+  [40, "SAP",      "Wear down."],
+  [41, "SEEM",     "Appear."],
+  [43, "HAS",      "Gives birth."],
+  [44, "PRINT",    "HP specialty."],
+  [45, "STRAY",    "Drift."],
+  [46, "CLOSE",    "Complete, a sale for example."],
+  [48, "ALOUD",    "Orally."],
+  [49, "RADIO",    "Ham's need."],
+  [50, "DRESS",    "Don clothes."],
+  [51, "APP",      "Instagram, for example."],
+  [52, "SITE",     "Locale."],
+  [54, "SPA",      "Health resort."],
+  [55, "PUP",      "One in a little basket, perhaps."],
+  [57, "SEE",      "Envision."],
+];
 
-for(let r=0;r<15;r++){
-  for(let c=0;c<15;c++){
-    if(solution[r][c]==="#") continue;
-    const startAcross = (c===0 || solution[r][c-1]==="#") && c<14 && solution[r][c+1]!=="#";
-    const startDown = (r===0 || solution[r-1][c]==="#") && r<14 && solution[r+1][c]!=="#";
-    if(startAcross || startDown) numbers[r][c]=count++;
+const H = 15, W = 15;
+const gridEl = document.getElementById("grid");
+const kbd = document.getElementById("kbd");
+const statusEl = document.getElementById("status");
+
+const isBlock = (r,c) => SOLUTION_ROWS[r][c] === "#";
+const sol = (r,c) => SOLUTION_ROWS[r][c];
+const user = Array.from({length:H}, () => Array.from({length:W}, () => ""));
+
+let dir = "across";
+let selected = {r:0,c:0};
+
+const cellEls = Array.from({length:H}, () => Array.from({length:W}, () => null));
+
+/* compute numbering */
+const nums = Array.from({length:H}, () => Array.from({length:W}, () => null));
+(function computeNumbers(){
+  let n = 1;
+  for (let r=0;r<H;r++){
+    for (let c=0;c<W;c++){
+      if (isBlock(r,c)) continue;
+      const startAcross = (c===0 || isBlock(r,c-1)) && (c+1<W && !isBlock(r,c+1));
+      const startDown   = (r===0 || isBlock(r-1,c)) && (r+1<H && !isBlock(r+1,c));
+      if (startAcross || startDown) nums[r][c] = n++;
+    }
   }
-}
+})();
 
-for(let r=0;r<15;r++){
-  for(let c=0;c<15;c++){
-    const d=document.createElement("div");
-    d.className="cell";
-    if(solution[r][c]==="#"){
-      d.classList.add("block");
-    } else {
-      d.contentEditable=true;
-      d.addEventListener("input",()=>{
-        d.textContent=d.textContent.toUpperCase().slice(0,1);
-        user[r][c]=d.textContent;
-        checkWord(r,c);
-      });
-      if(numbers[r][c]){
-        const n=document.createElement("div");
-        n.className="number";
-        n.textContent=numbers[r][c];
+function firstOpenCell(){
+  for (let r=0;r<H;r++) for (let c=0;c<W;c++) if (!isBlock(r,c)) return {r,c};
+  return {r:0,c:0};
+}
+selected = firstOpenCell();
+
+function renderGrid(){
+  gridEl.innerHTML = "";
+  for (let r=0;r<H;r++){
+    for (let c=0;c<W;c++){
+      const d = document.createElement("div");
+      d.className = "cell" + (isBlock(r,c) ? " block" : "");
+      d.dataset.r = r; d.dataset.c = c;
+
+      if (!isBlock(r,c) && nums[r][c] != null){
+        const n = document.createElement("div");
+        n.className = "num";
+        n.textContent = nums[r][c];
         d.appendChild(n);
       }
+
+      if (!isBlock(r,c)){
+        const ch = document.createElement("div");
+        ch.className = "ch";
+        ch.textContent = user[r][c];
+        d.appendChild(ch);
+      }
+
+      d.addEventListener("mousedown", (e)=>{
+        e.preventDefault();
+        selectCell(r,c);
+        kbd.focus();
+      });
+
+      gridEl.appendChild(d);
+      cellEls[r][c] = d;
     }
-    grid.appendChild(d);
+  }
+  paintSelection();
+}
+
+function setStatus(msg){ statusEl.textContent = msg || ""; }
+
+function toggleDir(){
+  dir = (dir === "across") ? "down" : "across";
+  document.getElementById("dirLabel").textContent = dir.toUpperCase();
+  paintSelection();
+}
+
+document.getElementById("toggleDir").addEventListener("click", ()=>{
+  toggleDir();
+  kbd.focus();
+});
+document.getElementById("checkWord").addEventListener("click", ()=>{
+  checkCurrentWord(true);
+  kbd.focus();
+});
+document.getElementById("clearWord").addEventListener("click", ()=>{
+  clearCurrentWord();
+  kbd.focus();
+});
+
+function selectCell(r,c){
+  if (isBlock(r,c)) return;
+  selected = {r,c};
+  paintSelection();
+}
+
+function getWordCells(r,c,dir){
+  let sr=r, sc=c;
+  if (dir==="across"){
+    while (sc>0 && !isBlock(sr, sc-1)) sc--;
+    const cells=[];
+    while (sc<W && !isBlock(sr, sc)) { cells.push({r:sr,c:sc}); sc++; }
+    return cells;
+  } else {
+    while (sr>0 && !isBlock(sr-1, sc)) sr--;
+    const cells=[];
+    while (sr<H && !isBlock(sr, sc)) { cells.push({r:sr,c:sc}); sr++; }
+    return cells;
   }
 }
 
-function checkWord(r,c){
-  checkDir(r,c,0,1);
-  checkDir(r,c,1,0);
+function paintSelection(){
+  for (let r=0;r<H;r++) for (let c=0;c<W;c++){
+    const el = cellEls[r][c];
+    if (!el) continue;
+    el.classList.remove("selected","in-word");
+  }
+
+  const word = getWordCells(selected.r, selected.c, dir);
+  for (const p of word) cellEls[p.r][p.c].classList.add("in-word");
+  cellEls[selected.r][selected.c].classList.add("selected");
+
+  const wStart = word[0];
+  const n = nums[wStart.r][wStart.c];
+  if (n != null){
+    const clue = (dir==="across")
+      ? (ACROSS_CLUES[n] || "")
+      : (DOWN_LIST.find(x=>x[0]===n)?.[2] || "");
+    setStatus(`${dir.toUpperCase()} ${n}: ${clue}`);
+  } else {
+    setStatus("");
+  }
 }
 
-function checkDir(r,c,dr,dc){
-  let sr=r,sc=c;
-  while(sr-dr>=0 && sc-dc>=0 && solution[sr-dr][sc-dc]!=="#"){
-    sr-=dr; sc-=dc;
-  }
-  let cells=[],sol="",usr="";
-  while(sr<15 && sc<15 && solution[sr][sc]!=="#"){
-    cells.push(grid.children[sr*15+sc]);
-    sol+=solution[sr][sc];
-    usr+=user[sr][sc]||"";
-    sr+=dr; sc+=dc;
-  }
-  if(usr.length===sol.length && !usr.includes("")){
-    const ok = usr===sol;
-    cells.forEach(c=>{
-      c.classList.remove("blink-red","blink-green");
-      void c.offsetWidth;
-      c.classList.add(ok?"blink-green":"blink-red");
-    });
+function move(deltaR, deltaC){
+  let r=selected.r, c=selected.c;
+  while (true){
+    r += deltaR; c += deltaC;
+    if (r<0||r>=H||c<0||c>=W) return;
+    if (!isBlock(r,c)) { selectCell(r,c); return; }
   }
 }
+
+function nextCell(){ (dir==="across") ? move(0,1) : move(1,0); }
+function prevCell(){ (dir==="across") ? move(0,-1) : move(-1,0); }
+
+function setLetterAt(r,c,letter){
+  user[r][c] = letter;
+  const ch = cellEls[r][c].querySelector(".ch");
+  if (ch) ch.textContent = letter;
+}
+
+function blinkCells(cells, color){
+  const cls = (color==="green") ? "blink-green" : "blink-red";
+  for (const p of cells){
+    const el = cellEls[p.r][p.c];
+    el.classList.remove("blink-green","blink-red");
+    void el.offsetWidth; // restart animation
+    el.classList.add(cls);
+    el.addEventListener("animationend", ()=>el.classList.remove(cls), {once:true});
+  }
+}
+
+function checkCurrentWord(withBlink){
+  const cells = getWordCells(selected.r, selected.c, dir);
+  const userWord = cells.map(p => (user[p.r][p.c] || "")).join("");
+  const solWord  = cells.map(p => sol(p.r,p.c)).join("");
+
+  if ([...userWord].some(ch => !ch)) {
+    setStatus("Fill the entire word to check.");
+    return false;
+  }
+
+  const ok = userWord.toUpperCase() === solWord.toUpperCase();
+  if (withBlink) blinkCells(cells, ok ? "green" : "red");
+  setStatus(ok ? "Correct." : "Not correct yet.");
+  return ok;
+}
+
+function clearCurrentWord(){
+  const cells = getWordCells(selected.r, selected.c, dir);
+  for (const p of cells) setLetterAt(p.r,p.c,"");
+  setStatus("Cleared word.");
+}
+
+function handleChar(ch){
+  if (!/^[A-Za-z]$/.test(ch)) return;
+  setLetterAt(selected.r, selected.c, ch.toUpperCase());
+
+  // after input, if the current word is fully filled, auto-check and blink
+  const cells = getWordCells(selected.r, selected.c, dir);
+  const complete = cells.every(p => user[p.r][p.c]);
+
+  nextCell();
+  if (complete) checkCurrentWord(true);
+}
+
+document.addEventListener("keydown", (e)=>{
+  const key = e.key;
+
+  if (key === "Tab") { e.preventDefault(); toggleDir(); return; }
+
+  if (key === "ArrowUp")    { e.preventDefault(); move(-1,0); return; }
+  if (key === "ArrowDown")  { e.preventDefault(); move(1,0);  return; }
+  if (key === "ArrowLeft")  { e.preventDefault(); move(0,-1); return; }
+  if (key === "ArrowRight") { e.preventDefault(); move(0,1);  return; }
+
+  if (key === "Backspace") {
+    e.preventDefault();
+    if (user[selected.r][selected.c]) {
+      setLetterAt(selected.r, selected.c, "");
+    } else {
+      prevCell();
+      setLetterAt(selected.r, selected.c, "");
+    }
+    return;
+  }
+
+  if (key === "Enter") {
+    e.preventDefault();
+    checkCurrentWord(true);
+    return;
+  }
+
+  if (key.length === 1) {
+    e.preventDefault();
+    handleChar(key);
+  }
+});
+
+/* Render clue lists */
+function renderClues(){
+  const acrossEl = document.getElementById("acrossClues");
+  const downEl = document.getElementById("downClues");
+
+  const acrossNums = Object.keys(ACROSS_CLUES).map(n=>parseInt(n,10)).sort((a,b)=>a-b);
+  acrossEl.innerHTML = acrossNums
+    .map(n => `<div class="clue"><b>${n}.</b> ${ACROSS_CLUES[n]}</div>`)
+    .join("");
+
+  downEl.innerHTML = DOWN_LIST
+    .slice()
+    .sort((a,b)=>a[0]-b[0])
+    .map(([n,_ans,clue]) => `<div class="clue"><b>${n}.</b> ${clue}</div>`)
+    .join("");
+}
+
+/* Init */
+renderGrid();
+renderClues();
+
+/* Click on grid focuses keyboard (helps mobile) */
+gridEl.addEventListener("click", ()=>kbd.focus());
 </script>
 
 </body>
 </html>
+
