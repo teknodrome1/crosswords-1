@@ -12,9 +12,16 @@
       font-family: Arial, Helvetica, sans-serif;
       margin: 18px;
       color: #111;
+      background: #eaf7ea; /* soft light green */
     }
 
-    h1 { margin: 0 0 14px; font-size: 34px; }
+    h1 { margin: 0 0 8px; font-size: 34px; }
+
+    .instructions {
+      margin: 0 0 14px;
+      font-size: 14px;
+      line-height: 1.35;
+    }
 
     .layout {
       display: grid;
@@ -34,6 +41,7 @@
       grid-template-rows: repeat(15, var(--cell));
       user-select: none;
       border: 0;
+      background: transparent;
     }
 
     .cell {
@@ -71,6 +79,10 @@
       pointer-events: none;
     }
 
+    .ch.wrong-letter {
+      color: #c1121f; /* red for wrong letters */
+    }
+
     .cell.selected {
       outline: 3px solid #3b82f6;
       outline-offset: -3px;
@@ -86,7 +98,7 @@
       background: #000;
     }
 
-    /* Blink feedback */
+    /* Blink feedback (word highlight) */
     @keyframes blinkGreen { 0%,100%{ background:#e8fff0; } 50%{ background:#9ef0b7; } }
     @keyframes blinkRed   { 0%,100%{ background:#ffecec; } 50%{ background:#ff9a9a; } }
 
@@ -156,6 +168,10 @@
 
 <body>
   <h1>Crossword #1</h1>
+
+  <p class="instructions">
+    Click once to select words <b>ACROSS</b>, click a second time on the square to select the words <b>DOWN</b>: Good luck!
+  </p>
 
   <div class="toolbar">
     <button id="toggleDir">Direction: <b id="dirLabel">ACROSS</b></button>
@@ -300,6 +316,7 @@ const user = Array.from({length:H}, () => Array.from({length:W}, () => ""));
 
 let dir = "across";
 let selected = {r:0,c:0};
+let lastClick = {r:-1,c:-1}; // for toggling on same cell
 
 const cellEls = Array.from({length:H}, () => Array.from({length:W}, () => null));
 
@@ -347,7 +364,14 @@ function renderGrid(){
 
       d.addEventListener("mousedown", (e)=>{
         e.preventDefault();
-        selectCell(r,c);
+
+        // click same square toggles direction across <-> down
+        if (selected.r === r && selected.c === c) {
+          toggleDirInternal();
+        } else {
+          selectCell(r,c);
+        }
+
         kbd.focus();
       });
 
@@ -360,14 +384,18 @@ function renderGrid(){
 
 function setStatus(msg){ statusEl.textContent = msg || ""; }
 
-function toggleDir(){
-  dir = (dir === "across") ? "down" : "across";
+function setDir(newDir){
+  dir = newDir;
   document.getElementById("dirLabel").textContent = dir.toUpperCase();
   paintSelection();
 }
 
+function toggleDirInternal(){
+  setDir(dir === "across" ? "down" : "across");
+}
+
 document.getElementById("toggleDir").addEventListener("click", ()=>{
-  toggleDir();
+  toggleDirInternal();
   kbd.focus();
 });
 document.getElementById("checkWord").addEventListener("click", ()=>{
@@ -438,7 +466,13 @@ function prevCell(){ (dir==="across") ? move(0,-1) : move(-1,0); }
 function setLetterAt(r,c,letter){
   user[r][c] = letter;
   const ch = cellEls[r][c].querySelector(".ch");
-  if (ch) ch.textContent = letter;
+  if (ch) {
+    ch.textContent = letter;
+
+    // instant per-square correctness coloring
+    if (letter && letter.toUpperCase() !== sol(r,c).toUpperCase()) ch.classList.add("wrong-letter");
+    else ch.classList.remove("wrong-letter");
+  }
 }
 
 function blinkCells(cells, color){
@@ -452,18 +486,21 @@ function blinkCells(cells, color){
   }
 }
 
-function checkCurrentWord(withBlink){
-  const cells = getWordCells(selected.r, selected.c, dir);
+function checkWordCells(cells, withBlink){
   const userWord = cells.map(p => (user[p.r][p.c] || "")).join("");
   const solWord  = cells.map(p => sol(p.r,p.c)).join("");
 
-  if ([...userWord].some(ch => !ch)) {
-    setStatus("Fill the entire word to check.");
-    return false;
-  }
+  if ([...userWord].some(ch => !ch)) return null; // incomplete
 
   const ok = userWord.toUpperCase() === solWord.toUpperCase();
   if (withBlink) blinkCells(cells, ok ? "green" : "red");
+  return ok;
+}
+
+function checkCurrentWord(withBlink){
+  const cells = getWordCells(selected.r, selected.c, dir);
+  const ok = checkWordCells(cells, withBlink);
+  if (ok === null) { setStatus("Fill the entire word to check."); return false; }
   setStatus(ok ? "Correct." : "Not correct yet.");
   return ok;
 }
@@ -476,20 +513,27 @@ function clearCurrentWord(){
 
 function handleChar(ch){
   if (!/^[A-Za-z]$/.test(ch)) return;
+
+  // capture the CURRENT word before we move the cursor
+  const activeWordCells = getWordCells(selected.r, selected.c, dir);
+
   setLetterAt(selected.r, selected.c, ch.toUpperCase());
 
-  // after input, if the current word is fully filled, auto-check and blink
-  const cells = getWordCells(selected.r, selected.c, dir);
-  const complete = cells.every(p => user[p.r][p.c]);
+  // if after inserting the letter the active word is complete, blink THAT same word
+  const complete = activeWordCells.every(p => user[p.r][p.c]);
 
   nextCell();
-  if (complete) checkCurrentWord(true);
+
+  if (complete) {
+    // blink the word that was just completed (not whatever we moved into)
+    checkWordCells(activeWordCells, true);
+  }
 }
 
 document.addEventListener("keydown", (e)=>{
   const key = e.key;
 
-  if (key === "Tab") { e.preventDefault(); toggleDir(); return; }
+  if (key === "Tab") { e.preventDefault(); toggleDirInternal(); return; }
 
   if (key === "ArrowUp")    { e.preventDefault(); move(-1,0); return; }
   if (key === "ArrowDown")  { e.preventDefault(); move(1,0);  return; }
@@ -546,4 +590,3 @@ gridEl.addEventListener("click", ()=>kbd.focus());
 
 </body>
 </html>
-
