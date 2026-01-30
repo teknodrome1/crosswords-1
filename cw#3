@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Crosswords#3 - January 2026</title>
+
+  <style>
+    :root { --cell: 40px; --border: #111; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 18px;
+      color: #111;
+      background: #eaf7ea;
+    }
+
+    h1 { margin: 0 0 8px; font-size: 34px; }
+
+    .instructions {
+      margin: 0 0 14px;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(15, var(--cell));
+      grid-template-rows: repeat(15, var(--cell));
+      user-select: none;
+    }
+
+    .cell {
+      position: relative;
+      width: var(--cell);
+      height: var(--cell);
+      border: 1px solid var(--border);
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    .cell.block { background: #000; }
+
+    .num {
+      position: absolute;
+      top: 2px;
+      left: 3px;
+      font-size: 10px;
+      color: #111;
+      pointer-events: none;
+    }
+
+    .ch {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 18px;
+      pointer-events: none;
+    }
+
+    .ch.wrong-letter { color: #c1121f; }
+
+    .cell.selected {
+      outline: 3px solid #3b82f6;
+      outline-offset: -3px;
+    }
+
+    .cell.in-word { background: #eef6ff; }
+
+    .cell.block.selected,
+    .cell.block.in-word {
+      background: #000;
+      outline: none;
+    }
+
+    @keyframes blinkGreen { 0%,100%{ background:#e8fff0; } 50%{ background:#9ef0b7; } }
+    @keyframes blinkRed   { 0%,100%{ background:#ffecec; } 50%{ background:#ff9a9a; } }
+
+    .blink-green { animation: blinkGreen 420ms ease-in-out 0s 2; }
+    .blink-red   { animation: blinkRed   420ms ease-in-out 0s 2; }
+
+    .panel h2 { margin: 0 0 10px; font-size: 18px; }
+    .panel h3 { margin: 14px 0 6px; font-size: 15px; }
+
+    .clues { columns: 2; column-gap: 18px; }
+    @media (max-width: 980px) { .clues { columns: 1; } }
+
+    .clue {
+      break-inside: avoid;
+      margin: 0 0 7px;
+      font-size: 13px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 7px 10px;
+      border: 1px solid #bbb;
+      background: #fff;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    input.hidden {
+      position: absolute;
+      left: -9999px;
+      opacity: 0;
+    }
+  </style>
+</head>
+
+<body>
+<h1>Crosswords#3 - January 2026</h1>
+
+<p class="instructions">
+  Click once to select words <b>ACROSS</b>, click again to switch to <b>DOWN</b>.
+</p>
+
+<p class="instructions">
+  Source: adapted for educational purposes.
+</p>
+
+<div class="toolbar">
+  <button id="toggleDir">Direction: <b id="dirLabel">ACROSS</b></button>
+  <button id="checkWord">Check word</button>
+  <button id="clearWord">Clear word</button>
+  <span id="status"></span>
+</div>
+
+<div class="layout">
+  <div>
+    <div id="grid" class="grid"></div>
+    <input id="kbd" class="hidden" />
+  </div>
+
+  <div class="panel">
+    <h2>Clues</h2>
+    <h3>Across</h3>
+    <div class="clues" id="acrossClues"></div>
+    <h3>Down</h3>
+    <div class="clues" id="downClues"></div>
+  </div>
+</div>
+
+<script>
+/* === SOLUTION GRID — CROSSWORD #3 === */
+const SOLUTION_ROWS = [
+  "DRILL#ARAB#MUM#",
+  "RADIO#MARE#USES",
+  "ARENT#ONCE#SURE",
+  "WEAK#RUG##CHART",
+  "###STUN#HOURLY#",
+  "EGG#WIT#INTO###",
+  "CRAYON#AGO#ORAL",
+  "HATES#ASH#AMUSE",
+  "ONES#INK#RUSSIA",
+  "###TENT#PEN#HAD",
+  "#CLEANS#RATS###",
+  "ALERT##OIL#HEAR",
+  "LOAD#WEVE#BADGE",
+  "LAVA#EYES#URGED",
+  "#KEY#BENT#SEEDS",
+];
+
+/* === ACROSS CLUES === */
+const ACROSS_CLUES = {
+  1:"Tool for making holes",
+  6:"Person from the Middle East",
+  10:"Silent; also a mother (informal)",
+  13:"Broadcast device",
+  14:"Adult female horse",
+  15:"Employs",
+  17:"“Are not,” colloquially",
+  18:"One time",
+  19:"Certain",
+  20:"Lacking strength",
+  21:"Small floor covering",
+  22:"Diagram or map",
+  23:"Astonish",
+  25:"Happening every sixty minutes",
+  27:"Oval breakfast item",
+  30:"Sharp intelligence",
+  31:"Interested in; absorbed by",
+  32:"Coloring stick",
+  34:"In the past",
+  35:"Spoken, not written",
+  39:"Strongly dislikes",
+  40:"Burnt residue",
+  41:"Entertain",
+  42:"Certain people or things",
+  43:"Pen fluid",
+  44:"World’s largest country",
+  45:"Temporary shelter",
+  47:"Writing instrument",
+  48:"Possessed formerly",
+  49:"Makes tidy",
+  51:"Rodents",
+  53:"Watchful",
+  54:"Slippery liquid",
+  55:"Perceive sound",
+  59:"Burden",
+  60:"“We have,” informally",
+  62:"Insignia",
+  63:"Molten rock",
+  64:"Organs of sight",
+  65:"Pressed strongly",
+  66:"Door opener",
+  67:"Curved",
+  68:"Plant starters",
+};
+
+/* === DOWN CLUES (answers hidden from display) === */
+const DOWN_LIST = [
+  [1,"DRAW","Make a sketch"],
+  [2,"RARE","Uncommon"],
+  [3,"IDEA","Thought or concept"],
+  [4,"LINKS","Connections"],
+  [5,"LOT","A bunch"],
+  [6,"AMOUNT","Quantity"],
+  [7,"RANG","Sounded (past tense of ring)"],
+  [8,"ARC","Curved line"],
+  [9,"BEE","Honey-making insect"],
+  [10,"MUSHROOMS","Fungi you might sauté"],
+  [11,"USUAL","Normal; typical"],
+  [12,"MERRY","Jolly"],
+  [16,"SET","Put in place"],
+  [21,"RUIN","Destroy"],
+  [22,"CUT","Slice"],
+  [24,"TWOS","Pairs (plural)"],
+  [25,"HIGH","Not low"],
+  [26,"ONO","Yoko ___"],
+  [27,"ECHO","Reflected sound"],
+  [28,"GRAN","Grandma (informal)"],
+  [29,"GATE","Hinged barrier"],
+  [33,"YESTERDAY","The day before today"],
+  [34,"ASK","Inquire"],
+  [36,"RUSH","Hurry"],
+  [37,"ASIA","Earth’s largest continent"],
+  [38,"LEAD","Guide"],
+  [40,"ANTS","Tiny colony insects"],
+  [41,"AUNT","Parent’s sister"],
+  [43,"INN","Small lodging place"],
+  [44,"REAL","Not imaginary"],
+  [46,"EAT","Consume food"],
+  [47,"PRIEST","Ordained religious minister"],
+  [49,"CLOAK","Cape-like covering"],
+  [50,"LEAVE","Depart"],
+  [52,"SHARE","Divide with others"],
+  [53,"ALL","Every one"],
+  [54,"OVEN","Kitchen appliance for baking"],
+  [56,"EDGE","Border"],
+  [57,"AGED","Old; mature"],
+  [58,"REDS","Some wines, informally"],
+  [60,"WEB","Spider’s trap"],
+  [61,"EYE","Organ of sight"],
+  [62,"BUS","Public transport vehicle"],
+];
+</script>
+
+<!-- Interaction logic unchanged -->
+<script src="crossword-engine.js"></script>
+</body>
+</html>
